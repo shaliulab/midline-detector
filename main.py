@@ -2,6 +2,7 @@ __author__ = "antortjim"
 import argparse
 import os.path
 import re
+import sys
 
 import cv2
 import numpy as np
@@ -65,13 +66,11 @@ def get_roi_map(experiment_folder):
 def make_roi_mask(roi_map, resolution, region_id):
 
     roi_mask = np.zeros(resolution, dtype=np.uint8)
-    # print(roi_mask.shape)
     x = roi_map.loc[roi_map["value"] == region_id]["x"].squeeze()
     y = roi_map.loc[roi_map["value"] == region_id]["y"].squeeze()
     w = roi_map.loc[roi_map["value"] == region_id]["w"].squeeze()
     h = roi_map.loc[roi_map["value"] == region_id]["h"].squeeze()
     
-    # print(x, y, w, h)
     roi_mask[y:(y+h), x:(x+w)] = 255
     return roi_mask, (x,y,w,h)
 
@@ -82,9 +81,12 @@ def find_center_human(median, region_id):
     failed=0
     roi = cv2.selectROIs("select center", median)
     
-    while len(roi) == 0 and failed<2:
+    while (len(roi) == 0 or roi == (0,0,0,0)) and failed<2 :
         failed+=1
         roi = cv2.selectROI("select center", median)
+
+    if failed == 2:
+        sys.exit(1)
 
     x = roi[0][0]
     print(x)
