@@ -75,62 +75,6 @@ def make_roi_mask(roi_map, resolution, region_id):
     roi_mask[y:(y+h), x:(x+w)] = 255
     return roi_mask, (x,y,w,h)
 
-def find_center_thresh(median, region_id):
-    center = 0
-    n_cts = 0
-    thresh_v = 220
-    while n_cts != 2 and thresh_v != 150:
-
-        cv2.imshow("canny", canny)
-
-        _, thresh = cv2.threshold(median, thresh_v, 255, cv2.THRESH_BINARY)
-   
-        cv2.imshow("thresh", thresh)
-        cv2.waitKey(0)
-
-        cnt, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        # print(cnt)
-        # [print(cv2.contourArea(c)) for c in cnt]
-
-        cnt = [c for c in cnt if 200 < cv2.contourArea(c) < 400]
-        n_cts = len(cnt)
-        print(thresh_v)
-        print(n_cts)
-        
-        thresh_v -= 10
-        
-    if len(cnt) != 2:
-        pass
-        #raise Exception(f"Could not check region_id {region_id}")
-    else:
-        maxx = [c[0,:].max() for c in cnt]
-        minn = [c[0,:].min() for c in cnt]
-        c_left = minn.index(min(minn))
-        c_right = maxx.index(max(maxx)
-        )
-        # print(c_left)
-        # print(c_right)
-
-        
-        left_side = np.max(cnt[c_left][:,:, 0])
-        right_side = np.min(cnt[c_right][:,:, 0])
-
-        # print(right_side)
-        # print(left_side)
-
-        center = np.mean([left_side, right_side])
-    # print(center)
-    return center
-
-def find_center_canny(median, region_id):
-    canny = cv2.Canny(median, 150, 220)
-    kernel = np.ones((2,1))
-    eroded = cv2.erode(canny, kernel, iterations=2)
-    kernel = np.ones((3,3))
-    dilated = cv2.dilate(eroded, kernel)
-    cv2.imshow("eroded", eroded)
-    cv2.imshow("dilated", dilated)
-    cv2.waitKey(0)
 
 def find_center_human(median, region_id):
 
@@ -182,7 +126,6 @@ def main():
 
         median = median[y:(y+h), x:(x+w)]
         
-        print(median.shape[:2])
         increase_factor = 12
         dest_size = tuple(np.array(median.shape[:2])*increase_factor)[::-1]
         median=cv2.resize(median, dest_size, interpolation = cv2.INTER_AREA)
@@ -193,14 +136,9 @@ def main():
         # # print(center)
         centers[region_id-1] = center
         
-    print(centers)
     save(experiment_folder, centers)
-
-   
-
 
 
 if __name__ == "__main__":
 
     main()
-    cv2.waitKey(0)
