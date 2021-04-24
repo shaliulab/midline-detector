@@ -114,11 +114,19 @@ def save(experiment_folder, centers):
         date_time + "_" + machine_id + "_" + "ROI_CENTER.csv"
     )
 
+    data = ""
+
     with open(csv_output, "w") as fh:
-        fh.write("region_id,center\n")
+        header = "region_id,center\n"
+        fh.write(header)
+        data += header
 
         for i, c in enumerate(centers):
-            fh.write(f"{i+1},{c}\n")
+            new_line = f"{i+1},{c}\n"
+            fh.write(new_line)
+            data += new_line
+
+    print(data)
     
     return 0
 
@@ -131,7 +139,7 @@ def main():
 
     centers = [None, ] * 20
 
-    for region_id in range(1,21):
+    for region_id in range(1,2):
 
         roi_mask, coords = make_roi_mask(roi_map, resolution, region_id)
         x,y,w,h=coords
