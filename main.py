@@ -3,16 +3,25 @@ import argparse
 import os.path
 import re
 import sys
+import logging
 
 import cv2
 import numpy as np
 import pandas as pd
 
+logger = logging.getLogger(__name__)
+handler = logging.StreamHandler()
+logger.addHandler(handler)
+
 ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--experiment-folder", "--input", dest="input", required=True)
+ap.add_argument("-D", "--debug", dest="debug", default=False, action="store_true")
 args = ap.parse_args()
 
-print(args.input)
+print(args)
+
+if args.debug:
+    logger.setLevel(logging.DEBUG)
 
 def find_file(folder, key):
     ff = os.listdir(folder)
@@ -79,17 +88,19 @@ def find_center_human(median, region_id):
 
     print(f"INFO: Region id {region_id}")
     failed=0
-    roi = cv2.selectROIs("select center", median)
+    roi = tuple(cv2.selectROIs("select center", median)[0])
     
+    logger.debug("Captured roi: ")
+    logger.debug(roi)
+
     while (len(roi) == 0 or roi == (0,0,0,0)) and failed<2 :
         failed+=1
-        roi = cv2.selectROI("select center", median)
+        roi = tuple(cv2.selectROI("select center", median)[0])
 
     if failed == 2:
         sys.exit(1)
 
-    x = roi[0][0]
-    print(x)
+    x = roi[0]
     return x
 
 
