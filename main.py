@@ -139,7 +139,7 @@ def main():
 
     centers = [None, ] * 20
 
-    for region_id in range(1,2):
+    for region_id in range(1,21):
 
         roi_mask, coords = make_roi_mask(roi_map, resolution, region_id)
         x,y,w,h=coords
