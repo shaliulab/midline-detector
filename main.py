@@ -88,19 +88,31 @@ def find_center_human(median, region_id):
 
     print(f"INFO: Region id {region_id}")
     failed=0
-    roi = tuple(cv2.selectROIs("select center", median)[0])
     
+    roi = cv2.selectROI("select center", median)
+    if roi != (0, 0, 0, 0):
+        x = roi[0]
+        w = roi[2]
+    else:
+        return 0
+
     logger.debug("Captured roi: ")
     logger.debug(roi)
 
-    while (len(roi) == 0 or roi == (0,0,0,0)) and failed<2 :
+    while roi == (0, 0, 0, 0) and failed < 2 :
         failed+=1
-        roi = tuple(cv2.selectROI("select center", median)[0])
+        roi = cv2.selectROI("select center", median)
+        if roi != (0, 0, 0, 0):
+            x = roi[0]
+            w = roi[2]
 
     if failed == 2:
         sys.exit(1)
 
-    x = roi[0]
+    # set the center of the chamber to the center
+    # along x of the user selected ROI
+    # (and not just the x coordinate of the top left corner)
+    x = x + w / 2
     return x
 
 
@@ -146,7 +158,6 @@ def main():
         median = find_median_image(experiment_folder, roi_mask)
 
         median = median[y:(y+h), x:(x+w)]
-        
         increase_factor = 12
         dest_size = tuple(np.array(median.shape[:2])*increase_factor)[::-1]
         median=cv2.resize(median, dest_size, interpolation = cv2.INTER_AREA)
