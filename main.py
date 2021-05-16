@@ -15,10 +15,58 @@ logger.addHandler(handler)
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--experiment-folder", "--input", dest="input", required=True)
+ap.add_argument("--region-ids", dest="region_ids", nargs="+", default=None, type=int)
+ap.add_argument("-l", "--label",  dest="label", action="store_true", default=False)
+ap.add_argument("-r", "--render",  dest="render", action="store_true", default=False)
 ap.add_argument("-D", "--debug", dest="debug", default=False, action="store_true")
 args = ap.parse_args()
 
 print(args)
+
+
+def draw_arrow(frame, x, y1, y2, *args, color=(0, 0, 255), **kwargs):
+    if len(color) == 3 and (len(frame.shape) == 2 or frame.shape[2] == 1):
+        frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+
+    frame = cv2.arrowedLine(frame, (x, y1), (x, y2), *args, color=color, **kwargs)
+    return frame
+
+
+def load_file(experiment_folder, pattern):
+
+    files = os.listdir(experiment_folder)
+    files_rev = [f[::-1] for f in files]
+    pattern_rev = pattern[::-1]
+    file = [f for f in files_rev if f[:len(pattern)] == pattern_rev][0][::-1]
+    path = os.path.join(experiment_folder, file)
+    result = pd.read_csv(path)
+    return result
+
+
+def render(experiment_folder):
+     
+    roi_center = load_file(experiment_folder, "ROI_CENTER.csv")
+    roi_map = load_file(experiment_folder, "ROI_MAP.csv")
+    roi_map["region_id"] = roi_map["value"]
+    roi_center.set_index("region_id", inplace=True)
+    roi_map.set_index("region_id", inplace=True)
+    #import ipdb; ipdb.set_trace()
+    roi_center = roi_center.join(roi_map, on="region_id")
+
+    median = find_median_image(experiment_folder)
+    print(roi_center)
+    
+    for roi in range(1, roi_center.shape[0]+1):
+        roi_data = roi_center.loc[roi]
+        x = int(roi_data["center"])
+        print(roi_data)
+        y1 = int(roi_data["y"]) - 30
+        y2 = int(roi_data["y"]) + 10
+        median = draw_arrow(median, x, y1, y2)
+
+    cv2.imshow("median", median)
+    cv2.waitKey(0)
+
 
 if args.debug:
     logger.setLevel(logging.DEBUG)
@@ -37,12 +85,15 @@ def read_snapshots(experiment_folder, n):
     snapshots = [cv2.imread(f) for f in img_snapshots[:10]]
     return snapshots
 
-def find_median_image(experiment_folder, roi_mask):
+def find_median_image(experiment_folder, roi_mask = None):
 
     snapshots = read_snapshots(experiment_folder, 60)
 
     imgs = [cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) for img in snapshots]
-    imgs = [cv2.bitwise_and(img, roi_mask) for img in imgs]
+    if roi_mask is None:
+        pass
+    else:
+        imgs = [cv2.bitwise_and(img, roi_mask) for img in imgs]
 
     stack = np.stack(imgs)
     median_image = np.median(stack, axis=0).astype(np.uint8)
@@ -126,32 +177,51 @@ def save(experiment_folder, centers):
         date_time + "_" + machine_id + "_" + "ROI_CENTER.csv"
     )
 
-    data = ""
 
-    with open(csv_output, "w") as fh:
-        header = "region_id,center\n"
-        fh.write(header)
-        data += header
+    if os.path.exists(csv_output):
+        centers_dest = pd.read_csv(csv_output)
+    else:
+        centers_dest = pd.DataFrame({"region_id": list(range(1,21)), "center": [0 for _ in range(1, 21)]})
 
-        for i, c in enumerate(centers):
-            new_line = f"{i+1},{c}\n"
-            fh.write(new_line)
-            data += new_line
+    for i, c in enumerate(centers):
+        if c is None:
+            pass
+        else:
+            centers_dest.loc[centers_dest["region_id"] == i+1, "center"] = c
 
-    print(data)
+    centers_dest.to_csv(csv_output, index=False)
+
+#    data = ""
+#
+#    with open(csv_output, "w") as fh:
+#        header = "region_id,center\n"
+#        fh.write(header)
+#        data += header
+#
+#        for i, c in enumerate(centers):
+#            new_line = f"{i+1},{c}\n"
+#            fh.write(new_line)
+#            data += new_line
+#
+#    print(data)
     
     return 0
 
-def main():
-
-    experiment_folder = args.input
+def label(experiment_folder, region_ids = None):
 
     roi_map = get_roi_map(experiment_folder)      
     resolution  = read_snapshots(experiment_folder, 1)[0].shape[:2]
 
-    centers = [None, ] * 20
 
-    for region_id in range(1,21):
+    centers = [None, ] * 20
+    print(region_ids)
+    if region_ids is None:
+        region_ids = np.arange(1,21)
+    else:
+        region_ids = np.array(region_ids)
+
+
+    for region_id in region_ids:
 
         roi_mask, coords = make_roi_mask(roi_map, resolution, region_id)
         x,y,w,h=coords
@@ -169,7 +239,23 @@ def main():
         centers[region_id-1] = center
         
     save(experiment_folder, centers)
+    return 0
 
+
+def main():
+
+    experiment_folder = args.input
+
+    if args.label:
+        label(experiment_folder, args.region_ids)
+        return 0
+
+    elif args.render:
+        render(experiment_folder)
+        return 0
+    else:
+        print("Please provide --label or --render in CLI")
+        return 1
 
 if __name__ == "__main__":
 
