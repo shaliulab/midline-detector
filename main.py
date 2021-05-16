@@ -64,7 +64,7 @@ def render(experiment_folder):
         y2 = int(roi_data["y"]) + 10
         median = draw_arrow(median, x, y1, y2)
 
-    cv2.imshow("median", median)
+    cv2.imshow("roi centers", median)
     cv2.waitKey(0)
 
 
