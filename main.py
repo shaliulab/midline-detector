@@ -64,6 +64,8 @@ def render(experiment_folder):
         y2 = int(roi_data["y"]) + 10
         median = draw_arrow(median, x, y1, y2)
 
+    prefix = get_prefix(experiment_folder)
+    cv2.imwrite(os.path.join(experiment_folder, prefix + "_" + "MIDLINE_RENDER.png"), median)
     cv2.imshow("roi centers", median)
     cv2.waitKey(0)
 
@@ -167,14 +169,20 @@ def find_center_human(median, region_id):
     return x
 
 
-def save(experiment_folder, centers):
-
+def get_prefix(experiment_folder):
     machine_id = get_machine_id(experiment_folder)
     date_time = get_date_time(experiment_folder)
+    prefix = date_time + "_" + machine_id
+    return prefix
+
+
+def save(experiment_folder, centers):
+
+    prefix = get_prefix(experiment_folder)
 
     csv_output = os.path.join(
         experiment_folder,
-        date_time + "_" + machine_id + "_" + "ROI_CENTER.csv"
+        prefix + "_" + "ROI_CENTER.csv"
     )
 
 
