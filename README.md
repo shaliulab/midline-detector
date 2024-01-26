@@ -6,13 +6,16 @@ where along the x coordinate is the center of the chamber
 
 Usage:
 
+```
 python main.py -i /path/to/idoc/experiment/folder --label # to annotate the center of the ROIs
 python main.py -i /path/to/idoc/experiment/folder --render # to visualize an existing annotation
-
+```
 
 ## Requirements
 
+```
 python>=3.7
 opencv-python
 pandas
 numpy
+```
