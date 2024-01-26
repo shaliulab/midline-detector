@@ -1,3 +1,14 @@
+"""
+Generate the _ROI_CENTERS.csv file that reports to idocr
+where along the x coordinate is the center of the chamber
+(or wherever you want the decision zone to be centered around)
+
+Usage:
+
+python main.py -i /path/to/idoc/experiment/folder --label # to annotate the center of the ROIs
+python main.py -i /path/to/idoc/experiment/folder --render # to visualize an existing annotation
+"""
+
 __author__ = "antortjim"
 import argparse
 import os.path
@@ -12,17 +23,14 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler()
 logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--experiment-folder", "--input", dest="input", required=True)
 ap.add_argument("--region-ids", dest="region_ids", nargs="+", default=None, type=int)
 ap.add_argument("-l", "--label",  dest="label", action="store_true", default=False)
 ap.add_argument("-r", "--render",  dest="render", action="store_true", default=False)
-ap.add_argument("-D", "--debug", dest="debug", default=False, action="store_true")
 args = ap.parse_args()
-
-print(args)
-
 
 def draw_arrow(frame, x, y1, y2, *args, color=(0, 0, 255), **kwargs):
     if len(color) == 3 and (len(frame.shape) == 2 or frame.shape[2] == 1):
@@ -54,12 +62,10 @@ def render(experiment_folder):
     roi_center = roi_center.join(roi_map, on="region_id")
 
     median = find_median_image(experiment_folder)
-    print(roi_center)
     
     for roi in range(1, roi_center.shape[0]+1):
         roi_data = roi_center.loc[roi]
         x = int(roi_data["center"])
-        print(roi_data)
         y1 = int(roi_data["y"]) - 30
         y2 = int(roi_data["y"]) + 10
         median = draw_arrow(median, x, y1, y2)
@@ -70,8 +76,6 @@ def render(experiment_folder):
     cv2.waitKey(0)
 
 
-if args.debug:
-    logger.setLevel(logging.DEBUG)
 
 def find_file(folder, key):
     ff = os.listdir(folder)
@@ -99,8 +103,6 @@ def find_median_image(experiment_folder, roi_mask = None):
 
     stack = np.stack(imgs)
     median_image = np.median(stack, axis=0).astype(np.uint8)
-
-    # cv2.imshow("median", median_image)
     return median_image
 
 def get_machine_id(experiment_folder):
@@ -139,7 +141,7 @@ def make_roi_mask(roi_map, resolution, region_id):
 
 def find_center_human(median, region_id):
 
-    print(f"INFO: Region id {region_id}")
+    logger.info("INFO: Region id %s", region_id)
     failed=0
     
     roi = cv2.selectROI("select center", median)
@@ -197,22 +199,7 @@ def save(experiment_folder, centers):
         else:
             centers_dest.loc[centers_dest["region_id"] == i+1, "center"] = c
 
-    centers_dest.to_csv(csv_output, index=False)
-
-#    data = ""
-#
-#    with open(csv_output, "w") as fh:
-#        header = "region_id,center\n"
-#        fh.write(header)
-#        data += header
-#
-#        for i, c in enumerate(centers):
-#            new_line = f"{i+1},{c}\n"
-#            fh.write(new_line)
-#            data += new_line
-#
-#    print(data)
-    
+    centers_dest.to_csv(csv_output, index=False)    
     return 0
 
 def label(experiment_folder, region_ids = None):
@@ -222,7 +209,6 @@ def label(experiment_folder, region_ids = None):
 
 
     centers = [None, ] * 20
-    print(region_ids)
     if region_ids is None:
         region_ids = np.arange(1,21)
     else:
@@ -239,11 +225,8 @@ def label(experiment_folder, region_ids = None):
         increase_factor = 12
         dest_size = tuple(np.array(median.shape[:2])*increase_factor)[::-1]
         median=cv2.resize(median, dest_size, interpolation = cv2.INTER_AREA)
-        # center = find_center(median, region_id)
-        # center = find_center_canny(median, region_id)
         center = find_center_human(median, region_id)
         center = center / increase_factor + x
-        # # print(center)
         centers[region_id-1] = center
         
     save(experiment_folder, centers)
@@ -262,9 +245,8 @@ def main():
         render(experiment_folder)
         return 0
     else:
-        print("Please provide --label or --render in CLI")
+        logger.error("Please provide --label or --render in CLI")
         return 1
 
 if __name__ == "__main__":
-
     main()
